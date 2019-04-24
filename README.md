@@ -21,10 +21,10 @@ ___
 
 
 ## 0. Introduzione
-Questo è un riassunto dell'articolo indicato tra i credits del quale è indispensabile la lettura per la comprensione  di quanto di seguito.
+Questo è un riassunto dell'articolo indicato tra i credits del quale è indispensabile la lettura per la comprensione di quanto di seguito.
 Vi consiglio altresì di leggere i vari links di rimando, in quanto sono utili per gli approfondimenti del caso.
 
-Il file *docker-compose.yml* contiene già l'intera "infrastruttura" descritta nell'articolo. Scopo di questo README è di adeguare il contenuto dell'articolo alle versioni attuali ed eventualmente aggiungere qualche dettaglio informativo laddove necessario.
+Il file *docker-compose.yml* contiene già l'intera "infrastruttura" descritta nell'articolo. Scopo di questo README è di adeguare il contenuto dell'articolo alle versioni attuali degli applicativi ed eventualmente aggiungere qualche dettaglio informativo laddove necessario.
 
 **N.B.** - All'interno del *docker-compose.yml* sono presenti credenziali di *default* e l'installazione che si ottiene non è un sistema *production-ready*.
 
