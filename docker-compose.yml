@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: 
 
   kong:
-    image: kong:1.1.1-alpine-oidc
+    image: kong:1.3.0-alpine-oidc
     depends_on:
       - kong-db
     networks:
@@ -45,6 +45,7 @@ services:
       KONG_PROXY_LISTEN:     0.0.0.0:8000, 0.0.0.0:8443 ssl
       KONG_ADMIN_LISTEN:     0.0.0.0:8001, 0.0.0.0:8444 ssl
       KONG_PLUGINS:          bundled,oidc
+      KONG_LOG_LEVEL:        debug
 
   konga:
     image: pantsel/konga:latest
@@ -76,7 +77,7 @@ services:
       POSTGRES_PASSWORD: password
 
   keycloak:
-    image: jboss/keycloak:6.0.0
+    image: jboss/keycloak:7.0.0
     depends_on:
       - keycloak-db
     networks:
