@@ -17,6 +17,32 @@
 * Kong 1.3.0 - alpine
 * Konga 0.14.3
 * Keycloak 7.0.0
+
+## Goal of this tutorial
+
+The goal of this tutorial is to be able to protect, through the configuration of kong and keycloak, an API resource.
+More in details, let's consider the following request flow:
+
+![Request Floe](images/request-flow.png)
+
+1. The user application sends a request to the API gateway (kong). However, the request is either not authenticated (or 
+contains an invalid authentication).
+2. The gateway API responds to the client indicating the lack of authentication.
+3. The application therefore needs to log in. Therefore it sends a specific request for login to the Single Sign On 
+(Keycloak), including the user's credentials and the specific client-id assigned to the application itself.
+4. If the credentials are valid, the SSO (Keycloak) issues to the application a token (and the related refresh token), 
+with which to authenticate the requests to the Gateway API (Kong)
+5. The application then repeats the request adding the valid token as an authorization
+6. Behind the scenes, the gateway API will proceed to verify (through introspection) that the token in question 
+corresponds to a session on the Single Sign On (Keycloak). 
+7. The result of the introspection is returned to Kong, who will handle the application request accordingly
+8. If the outcome of introspection is positive, Kong will handle the request. Alternatively we will be in step 2 (the request is refused)
+
+Note:
+The application can log in to keycloak even before sending the first request. Indeed it is normally so, if we think of 
+the case of a mobile app: once the credentials have been entered, the user may have chosen to remain connected (so at 
+most the application will request a new valid token using the refresh token).
+
 ___
 
 
@@ -311,47 +337,170 @@ Click "Reset Password" to apply the new credential.
 
 ![Change Password](images/keycloak-user-change-password.png)
 
------- TBC------------
+## 6. Kong configuration as Keycloak client
 
-## 6. Attivazione di keycloak sulla route di test
+to be able to activate the functionality of the OIDC with Kong as a client of Keycloak, and to allow introspection 
+(points 6 and 7 of the initial image) it is necessary to invoke an Admin Rest API of Kong.
 
-per poter attivare la funionalità dell'OIDC con Kong come client di Keycloak, bisogna invocare una Admin Rest API di Kong.
+The API in question is [/plugins](https://docs.konghq.com/1.3.x/admin-api/#add-plugin) which allows you to add a plugin 
+globally to Kong.
 
-L'API in questione è [/plugins](https://docs.konghq.com/1.3.x/admin-api/#add-plugin) che consente di aggiungere un plugin globalmente a Kong.
+To add the OIDC plugin, you need some information:
 
-Per aggiugnere il plugin di OIDC, occorrono alcune informazioni:
+- The IP address of our machine (this is because the redirection should be done on a URL of the keycloak service, but in 
+the example kong runs in a container and in a network segment different from that of keycloak).
+- the CLIENT_SECRET recoverable from the "Credential" tab available in the "kong" client tab added during the Keycloak 
+configuration phase.
 
-- L'indirizzo IP della nostra macchina (questo perchè la redirezione andrebbe fatta su una URL del servizio di keycloak, ma nell'esempio kong gira in un container e in un segmento di rete diverso da quello di keycloak).
-- la CLIENT_SECRET recuperabile dal tab "Credential" disponibile nella scheda del client "kong" aggiunto durante la fase di configurazione di Keycloak.
+To retrieve the ip address of a network interface, knowing its name, you can use the following command:
+```bash
+HOST_IP=`ip address show dev <<DEVICE_NAME_HERE>> | grep "inet " \
+| grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
+| head -1`
+```
 
-A questo punto, assumendo che il proprio IP sia 192.168.0.1, possiamo invocare questa chiamata:
+Replace the <<DEVICE_NAME_HERE>> with the name of your network interface.
+
+![Terminal IP](images/terminal-ip.png)
+
+You should have the result of the image above. In my example, the network interface is wlp2s0 and my ip is 
+192.168.88.21.
+
+Now set a variable with the client secret:
+```bash
+$ CLIENT_SECRET="02432bc5-0802-49de-9c03-b9b84301859f"
+```
+
+If the HOST_IP variable is filled up correctly with your Ip address, you can use the following curl request to
+configure Kong OIDC:
 
 ```bash
-$ HOST_IP="192.168.0.1"
-$ CLIENT_SECRET="0eb63fbb-5b23-4f4e-96ca-6f837d94edfd"
 $ curl -s -X POST http://localhost:8001/plugins \
   -d name=oidc \
   -d config.client_id=kong \
   -d config.client_secret=${CLIENT_SECRET} \
+  -d config.bearer_only=yes \
+  -d config.realm=kong \
+  -d config.introspection_endpoint=http://${HOST_IP}:8180/auth/realms/experimental/protocol/openid-connect/token/introspect \
   -d config.discovery=http://${HOST_IP}:8180/auth/realms/master/.well-known/openid-configuration \
   | python -mjson.tool
+```
+
+Kong should reply with the configuration:
+```bash
 {
     "config": {
-        "bearer_only": "no",
+        "bearer_only": "yes",
         "client_id": "kong",
-        "client_secret": "0eb63fbb-5b23-4f4e-96ca-6f837d94edfd",
-        "discovery": "http://192.168.88.19:8180/auth/realms/master/.well-known/openid-configuration",
+        "client_secret": "02432bc5-0802-49de-9c03-b9b84301859f",
+        "discovery": "http://192.168.88.21:8180/auth/realms/master/.well-known/openid-configuration",
         "filters": null,
-        "introspection_endpoint": null,
+        "introspection_endpoint": "http://192.168.88.21:8180/auth/realms/experimental/protocol/openid-connect/token/introspect",
         "introspection_endpoint_auth_method": null,
         "logout_path": "/logout",
         "realm": "kong",
-
-    ...
+        "recovery_page_path": null,
+        "redirect_after_logout_uri": "/",
+        "redirect_uri_path": null,
+        "response_type": "code",
+        "scope": "openid",
+        "session_secret": null,
+        "ssl_verify": "no",
+        "token_endpoint_auth_method": "client_secret_post"
+    },
+    "consumer": null,
+    "created_at": 1567746736,
+    "enabled": true,
+    "id": "6476d875-56b8-4e7b-9bf9-bdd72241a9bd",
+    "name": "oidc",
+    "protocols": [
+        "grpc",
+        "grpcs",
+        "http",
+        "https"
+    ],
+    "route": null,
+    "run_on": "first",
+    "service": null,
+    "tags": null
 }
 ```
 
-La configurazione appena completata è amministrabile attraverso Konga :)
+You can see the configuration visually through Konga > [Plugins](http://localhost:1337/#!/plugins):
 
-Ad ogni modo, se proveremo ad accedere alla URL [http://localhost:8000/mock](http://localhost:8000/mock), Kong dovrebbe redirezionarci in Keycloak, dove potremo autenticarci con le credenziali create in precedenza.
+![Konga Kong Plugins OIDC](images/konga-plugins-oidc.png)
+
+```bash
+curl "http://${HOST_IP}:8000/mock" \
+-H "Accept: application/json"
+no Authorization header found
+
+RAWTKN=$(curl -s -X POST \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "username=demouser" \
+        -d "password=demouser" \
+        -d 'grant_type=password' \
+        -d "client_id=myapp" \
+        http://${HOST_IP}:8180/auth/realms/experimental/protocol/openid-connect/token \
+ 
+        |jq . )
+
+echo $RAWTKN
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA",
+  "expires_in": 300,
+  "refresh_expires_in": 1800,
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIyZGZmMDI2MS01YzdjLTRmNGQtOTAxZS1lZjI3ZjM0YTNmNTUifQ.eyJqdGkiOiIyNjE2NDQyYi00ZTI5LTRmY2ItYTMzNi05ZTg5ZGZiNTUxNTgiLCJleHAiOjE1Njc3NDg5MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6Imh0dHA6Ly8xOTIuMTY4Ljg4LjIxOjgxODAvYXV0aC9yZWFsbXMvZXhwZXJpbWVudGFsIiwic3ViIjoiMTU4NDljNDUtOWUyMS00Zjk0LWI2ZjQtYTM5MjEzMjZkZDRiIiwidHlwIjoiUmVmcmVzaCIsImF6cCI6Im15YXBwIiwiYXV0aF90aW1lIjowLCJzZXNzaW9uX3N0YXRlIjoiYjE0YjY4OTQtMTVmNC00MTc2LWJiOTAtZGI5OGViODc5NGQ1IiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwifQ.CEBbW31oeMlzHHRw3nwRd0nKq4jFC0KbsUBm5yMw-Ao",
+  "token_type": "bearer",
+  "not-before-policy": 0,
+  "session_state": "b14b6894-15f4-4176-bb90-db98eb8794d5",
+  "scope": "profile email"
+}
+
+❯ export TKN=$(echo $RAWTKN | jq -r '.access_token')
+
+~
+❯ echo $TKN
+  eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA
+
+curl "http://${HOST_IP}:8000/mock" \
+-H "Accept: application/json" \
+-H "Authorization: Bearer $TKN"
+{
+  "startedDateTime": "2019-09-06T05:20:40.123Z",
+  "clientIPAddress": "192.168.88.21",
+  "method": "GET",
+  "url": "http://192.168.88.21/request",
+  "httpVersion": "HTTP/1.1",
+  "cookies": {},
+  "headers": {
+    "host": "mockbin.org",
+    "connection": "close",
+    "x-forwarded-for": "192.168.88.21, 10.1.192.18, 18.204.28.183",
+    "x-forwarded-proto": "http",
+    "x-forwarded-host": "192.168.88.21",
+    "x-forwarded-port": "80",
+    "x-real-ip": "93.46.112.28",
+    "kong-cloud-request-id": "4276d69c7c5896d619a3a2486c358d7a",
+    "kong-client-id": "mockbin",
+    "user-agent": "curl/7.64.0",
+    "accept": "application/json",
+    "authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA",
+    "x-userinfo": "eyJhenAiOiJteWFwcCIsImlhdCI6MTU2Nzc0NzEwNywiaXNzIjoiaHR0cDpcL1wvMTkyLjE2OC44OC4yMTo4MTgwXC9hdXRoXC9yZWFsbXNcL2V4cGVyaW1lbnRhbCIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSIsImdpdmVuX25hbWUiOiJEZW1vIiwic3ViIjoiMTU4NDljNDUtOWUyMS00Zjk0LWI2ZjQtYTM5MjEzMjZkZDRiIiwiYXV0aF90aW1lIjowLCJpZCI6IjE1ODQ5YzQ1LTllMjEtNGY5NC1iNmY0LWEzOTIxMzI2ZGQ0YiIsImFjdGl2ZSI6dHJ1ZSwibmJmIjowLCJ1c2VybmFtZSI6ImRlbW91c2VyIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJhdWQiOiJhY2NvdW50Iiwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJhY3IiOiIxIiwiY2xpZW50X2lkIjoibXlhcHAiLCJmYW1pbHlfbmFtZSI6IlVzZXIiLCJleHAiOjE1Njc3NDc0MDcsInByZWZlcnJlZF91c2VybmFtZSI6ImRlbW91c2VyIiwianRpIjoiNTZjZDhmMmMtYmRlYi00OTg5LWIyYzYtMzM0ZmY0MDlkMWMyIiwibmFtZSI6IkRlbW8gVXNlciIsInR5cCI6IkJlYXJlciJ9",
+    "x-request-id": "72956711-a23a-45b3-b04f-6fd588cfc885",
+    "via": "1.1 vegur",
+    "connect-time": "0",
+    "x-request-start": "1567747240120",
+    "total-route-time": "0"
+  },
+  "queryString": {},
+  "postData": {
+    "mimeType": "application/octet-stream",
+    "text": "",
+    "params": []
+  },
+  "headersSize": 2852,
+  "bodySize": 0
+}
+```
 
