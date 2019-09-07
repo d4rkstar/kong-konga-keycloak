@@ -18,7 +18,7 @@
 * Konga 0.14.3
 * Keycloak 7.0.0
 
-## Goal of this tutorial
+## [Goal of this tutorial](#goal-of-tutorial)
 
 The goal of this tutorial is to be able to protect, through the configuration of kong and keycloak, an API resource.
 More in details, let's consider the following request flow:
@@ -46,7 +46,7 @@ most the application will request a new valid token using the refresh token).
 ___
 
 
-## 0. Introduction
+## [0. Introduction](#introduction)
 I reviewed the content of this page, and I decided to turn it into a complete guide and translate it from Italian to 
 English to make it universal to read: the previous version was a summary of the article indicated among the credits 
 (whose reading is useful for understanding what follows).
@@ -61,12 +61,12 @@ informative details where necessary.
 *production-ready* system. 
 
 
-## 1. Create the image of Kong + Oidc
+## [1. Create the image of Kong + Oidc](#kong-image-oidc)
 
 [kong-oidc](https://github.com/nokia/kong-oidc) is a kong plugin that allows you to implement OpenID Connect RP (Relying 
 Party).
 
-### 1.1 Brief introduction to OIDC
+### [1.1 Brief introduction to OIDC](#brief-introduction-to-oidc)
 
 OpenID is a simple level of identity implemented above the OAuth 2.0 protocol: it allows its Clients to verify the 
 identity of the end user, based on the authentication performed by an Authorization Server, as well as to obtain basic 
@@ -86,7 +86,7 @@ sites and the operators of the collaborating site must not develop their own acc
 * [Claims based identity](https://en.wikipedia.org/wiki/Claims-based_identity)
 * [OpenID](https://en.wikipedia.org/wiki/OpenID)
 
-### 1.2 Construction of the docker image
+### [1.2 Construction of the docker image](#kong-docker-image)
 
 Compared to the setting proposed by the author of the article from which we started, we will proceed to implement an 
 image based on his alpine linux.
@@ -110,7 +110,7 @@ We will just have to give the command:
 
 and wait for the image to build.
 
-## 2. Kong DB + Database Migrations
+## 2. [Kong DB + Database Migrations](#kong-db-migrations)
 
 Kong uses a database server (postgresql in our case). For this reason it is necessary to initialize the database by 
 launching the necessary migrations.
@@ -226,7 +226,7 @@ $ curl -s http://localhost:8000/mock
 
 ```
 
-# 5. Keycloak containers
+# [5. Keycloak containers](#keycloak-containers)
 
 We start the keycloak database service:
 
@@ -260,7 +260,7 @@ kong-konga-keycloak_konga_1_e925524dbfcb         /app/start.sh                  
 
 ```
 
-## 6. Configuration of realm and clients in Keycloak
+## [6. Configuration of realm and clients in Keycloak](#realm-and-clients-config)
 
 Keycloak will be available at the url [http://localhost:8180](http://localhost:8180).
 
@@ -337,7 +337,7 @@ Click "Reset Password" to apply the new credential.
 
 ![Change Password](images/keycloak-user-change-password.png)
 
-## 6. Kong configuration as Keycloak client
+## 7. [Kong configuration as Keycloak client](#kong-configuration)
 
 to be able to activate the functionality of the OIDC with Kong as a client of Keycloak, and to allow introspection 
 (points 6 and 7 of the initial image) it is necessary to invoke an Admin Rest API of Kong.
@@ -386,7 +386,14 @@ $ curl -s -X POST http://localhost:8001/plugins \
   | python -mjson.tool
 ```
 
-Kong should reply with the configuration:
+If you want the details about the various -d config. we used in this request, please point your browwser to the github
+page for [Kong Oidc](https://github.com/nokia/kong-oidc). Check the "Usage" section.
+
+Only pay attention to the "bearer_only=yes": with this setting kong will introspect tokens without redirecting. This is
+useful if you're build an app / webpage and want full control over the login process: infact, kong will not redirect
+the user to keycloak login page upon an unauthorized request, but will reply with 401. 
+
+However, Kong should reply with the configuration:
 ```bash
 {
     "config": {
@@ -430,11 +437,30 @@ You can see the configuration visually through Konga > [Plugins](http://localhos
 
 ![Konga Kong Plugins OIDC](images/konga-plugins-oidc.png)
 
+We're ready to do the final test !
+
+# [8. Final test](#final-test)
+Before begin, be sure you've setup the HOST_IP environment variable, like done under 
+[Kong Configuration](#kong-configuration).
+ 
+Let's try to access our API without authorization:
 ```bash
 curl "http://${HOST_IP}:8000/mock" \
--H "Accept: application/json"
-no Authorization header found
+-H "Accept: application/json" -I
+HTTP/1.1 401 Unauthorized
+Date: Sat, 07 Sep 2019 05:44:13 GMT
+Connection: keep-alive
+WWW-Authenticate: Bearer realm="kong",error="no Authorization header found"
+Server: kong/1.3.0
+```
+Well, kong says that we need to be authenticated! Let's do that
 
+Under the section [6. Configuration of realm and clients in Keycloak](#realm-and-clients-config), we added an user.
+In my case it's user / pass was demouser / demouser, remember? We also created a client named "myapp" and we gave
+to this client the access type "public". If you pay attention to the following curl request, we're going to use
+that parameters to perform our login:
+
+```bash
 RAWTKN=$(curl -s -X POST \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "username=demouser" \
@@ -456,13 +482,24 @@ echo $RAWTKN
   "session_state": "b14b6894-15f4-4176-bb90-db98eb8794d5",
   "scope": "profile email"
 }
+```
 
+We use two steps here (we saved the request result in RAWTKN) because this allows to explore the content of various
+responses.
+
+Let's extract the access token from RAWTKN:
+
+```bash
 ❯ export TKN=$(echo $RAWTKN | jq -r '.access_token')
 
 ~
 ❯ echo $TKN
   eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA
+```
 
+
+Let's use the access token to access the authenticated api:
+```bash
 curl "http://${HOST_IP}:8000/mock" \
 -H "Accept: application/json" \
 -H "Authorization: Bearer $TKN"
@@ -480,7 +517,7 @@ curl "http://${HOST_IP}:8000/mock" \
     "x-forwarded-proto": "http",
     "x-forwarded-host": "192.168.88.21",
     "x-forwarded-port": "80",
-    "x-real-ip": "93.46.112.28",
+    "x-real-ip": "121.12.12.1",
     "kong-cloud-request-id": "4276d69c7c5896d619a3a2486c358d7a",
     "kong-client-id": "mockbin",
     "user-agent": "curl/7.64.0",
@@ -503,4 +540,4 @@ curl "http://${HOST_IP}:8000/mock" \
   "bodySize": 0
 }
 ```
-
+Yeah! This works. End we reached the end of this readme! All seems to work now.
