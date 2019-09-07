@@ -1,4 +1,4 @@
-# Installazione Kong / Konga / Keycloak
+# Kong / Konga / Keycloak: securing API through OIDC 
 
 ## Credits:
 
@@ -18,7 +18,7 @@
 * Konga 0.14.3
 * Keycloak 7.0.0
 
-## [Goal of this tutorial](#goal-of-tutorial)
+## Goal of this tutorial
 
 The goal of this tutorial is to be able to protect, through the configuration of kong and keycloak, an API resource.
 More in details, let's consider the following request flow:
@@ -46,7 +46,7 @@ most the application will request a new valid token using the refresh token).
 ___
 
 
-## [0. Introduction](#introduction)
+## 0. Introduction
 I reviewed the content of this page, and I decided to turn it into a complete guide and translate it from Italian to 
 English to make it universal to read: the previous version was a summary of the article indicated among the credits 
 (whose reading is useful for understanding what follows).
@@ -61,12 +61,12 @@ informative details where necessary.
 *production-ready* system. 
 
 
-## [1. Create the image of Kong + Oidc](#kong-image-oidc)
+## 1. Create the image of Kong + Oidc
 
 [kong-oidc](https://github.com/nokia/kong-oidc) is a kong plugin that allows you to implement OpenID Connect RP (Relying 
 Party).
 
-### [1.1 Brief introduction to OIDC](#brief-introduction-to-oidc)
+### 1.1 Brief introduction to OIDC
 
 OpenID is a simple level of identity implemented above the OAuth 2.0 protocol: it allows its Clients to verify the 
 identity of the end user, based on the authentication performed by an Authorization Server, as well as to obtain basic 
@@ -86,7 +86,7 @@ sites and the operators of the collaborating site must not develop their own acc
 * [Claims based identity](https://en.wikipedia.org/wiki/Claims-based_identity)
 * [OpenID](https://en.wikipedia.org/wiki/OpenID)
 
-### [1.2 Construction of the docker image](#kong-docker-image)
+### 1.2 Construction of the docker image
 
 Compared to the setting proposed by the author of the article from which we started, we will proceed to implement an 
 image based on his alpine linux.
@@ -110,7 +110,7 @@ We will just have to give the command:
 
 and wait for the image to build.
 
-## 2. [Kong DB + Database Migrations](#kong-db-migrations)
+## 2. Kong DB + Database Migrations
 
 Kong uses a database server (postgresql in our case). For this reason it is necessary to initialize the database by 
 launching the necessary migrations.
@@ -226,7 +226,7 @@ $ curl -s http://localhost:8000/mock
 
 ```
 
-# [5. Keycloak containers](#keycloak-containers)
+# 5. Keycloak containers
 
 We start the keycloak database service:
 
@@ -260,7 +260,7 @@ kong-konga-keycloak_konga_1_e925524dbfcb         /app/start.sh                  
 
 ```
 
-## [6. Configuration of realm and clients in Keycloak](#realm-and-clients-config)
+## 6. Configuration of realm and clients in Keycloak
 
 Keycloak will be available at the url [http://localhost:8180](http://localhost:8180).
 
@@ -337,7 +337,7 @@ Click "Reset Password" to apply the new credential.
 
 ![Change Password](images/keycloak-user-change-password.png)
 
-## 7. [Kong configuration as Keycloak client](#kong-configuration)
+## 7. Kong configuration as Keycloak client
 
 to be able to activate the functionality of the OIDC with Kong as a client of Keycloak, and to allow introspection 
 (points 6 and 7 of the initial image) it is necessary to invoke an Admin Rest API of Kong.
@@ -439,9 +439,9 @@ You can see the configuration visually through Konga > [Plugins](http://localhos
 
 We're ready to do the final test !
 
-# [8. Final test](#final-test)
+# 8. Final test
 Before begin, be sure you've setup the HOST_IP environment variable, like done under 
-[Kong Configuration](#kong-configuration).
+[Kong Configuration](#7-Kong-configuration-as-keycloak-client).
  
 Let's try to access our API without authorization:
 ```bash
@@ -455,7 +455,7 @@ Server: kong/1.3.0
 ```
 Well, kong says that we need to be authenticated! Let's do that
 
-Under the section [6. Configuration of realm and clients in Keycloak](#realm-and-clients-config), we added an user.
+Under the section [6. Configuration of realm and clients in Keycloak](#6-configuration-of-realm-and-clients-in-keycloak), we added an user.
 In my case it's user / pass was demouser / demouser, remember? We also created a client named "myapp" and we gave
 to this client the access type "public". If you pay attention to the following curl request, we're going to use
 that parameters to perform our login:
