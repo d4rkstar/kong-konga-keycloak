@@ -14,9 +14,9 @@
 * :coffee:
 
 ## Installed versions:
-* Kong 1.3.0 - alpine
-* Konga 0.14.3
-* Keycloak 7.0.0
+* Kong 1.4.0 - alpine
+* Konga 0.14.7
+* Keycloak 7.0.1
 
 ## Goal of this tutorial
 
