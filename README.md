@@ -94,9 +94,9 @@ image based on his alpine linux.
 This is the content of the Dockerfile attached to this brief guide:
 
 ```
-FROM kong:1.3.0-alpine
+FROM kong:1.4.0-alpine
 
-LABEL description="Alpine + Kong 1.3.0 + kong-oidc plugin"
+LABEL description="Alpine + Kong 1.4.0 + kong-oidc plugin"
 
 RUN apk update && apk add git unzip luarocks
 RUN luarocks install kong-oidc
@@ -105,7 +105,7 @@ RUN luarocks install kong-oidc
 We will just have to give the command:
 
 ```bash
-# docker build -t kong:1.3.0-alpine-oidc .
+# docker build -t kong:1.4.0-alpine-oidc .
 ```
 
 and wait for the image to build.
