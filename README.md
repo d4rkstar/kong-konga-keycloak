@@ -158,7 +158,7 @@ We start konga with the command:
 docker-compose up -d konga
 ```
 
-onga is listening on port 1337. Therefore we launch a browser and point to the url 
+Konga is listening on port 1337. Therefore we launch a browser and point to the url 
 [http://localhost:1337](http://localhost:1337).
 
 The first time we log in to konga we will need to register the administrator account. For tests, use 
