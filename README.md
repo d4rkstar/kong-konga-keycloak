@@ -14,9 +14,9 @@
 * :coffee:
 
 ## Installed versions:
-* Kong 1.4.0 - alpine
+* Kong 1.4.2 - alpine
 * Konga 0.14.7
-* Keycloak 7.0.1
+* Keycloak 8.0.1
 
 ## Goal of this tutorial
 
@@ -58,7 +58,7 @@ this README is to adapt the content of the article to the current versions of th
 informative details where necessary.
 
 :danger: *Warning*- Inside the *docker-compose.yml* there are default credentials and the installation you get is not a 
-*production-ready* system. 
+*production-ready* system.
 
 
 ## 1. Create the image of Kong + Oidc
@@ -93,10 +93,10 @@ image based on his alpine linux.
 
 This is the content of the Dockerfile attached to this brief guide:
 
-```
-FROM kong:1.4.0-alpine
+```Dockerfile
+FROM kong:1.4.2-alpine
 
-LABEL description="Alpine + Kong 1.4.0 + kong-oidc plugin"
+LABEL description="Alpine + Kong 1.4.2 + kong-oidc plugin"
 
 RUN apk update && apk add git unzip luarocks
 RUN luarocks install kong-oidc
@@ -105,7 +105,7 @@ RUN luarocks install kong-oidc
 We will just have to give the command:
 
 ```bash
-# docker build -t kong:1.4.0-alpine-oidc .
+# docker build -t kong:1.4.2-alpine-oidc .
 ```
 
 and wait for the image to build.
@@ -134,14 +134,14 @@ docker-compose up -d kong
 ```
 
 Let's verify that you have the two services running:
-```
-# docker-compose ps
+```bash
+$ docker-compose ps
 ```
 
 And finally, let's verify that the OIDC plugin is present on Kong:
 
 ```bash
- curl -s http://localhost:8001 | jq .plugins.available_on_server.oidc
+$ curl -s http://localhost:8001 | jq .plugins.available_on_server.oidc
 ```
 
 The result of this call should be `true`. The presence of the plugin does not indicate that it is 
@@ -155,7 +155,7 @@ configurations (as well as inspect the configurations made from the command line
 We start konga with the command:
 
 ```bash
-docker-compose up -d konga
+$ docker-compose up -d konga
 ```
 
 Konga is listening on port 1337. Therefore we launch a browser and point to the url 
@@ -268,7 +268,6 @@ You can login using credentials inside the docker-compose.yml file. (default cre
 admin/admin)
 
 ![Keycloak Login](images/keycloak-login.png)
-
 
 After login, click on the button "Add Realm": this button appears when your mouse is over the realm 
 name (Master) on the upper left corner:
@@ -468,7 +467,6 @@ RAWTKN=$(curl -s -X POST \
         -d 'grant_type=password' \
         -d "client_id=myapp" \
         http://${HOST_IP}:8180/auth/realms/experimental/protocol/openid-connect/token \
- 
         |jq . )
 
 echo $RAWTKN
@@ -497,8 +495,8 @@ Let's extract the access token from RAWTKN:
   eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA
 ```
 
-
 Let's use the access token to access the authenticated api:
+
 ```bash
 curl "http://${HOST_IP}:8000/mock" \
 -H "Accept: application/json" \
@@ -540,4 +538,5 @@ curl "http://${HOST_IP}:8000/mock" \
   "bodySize": 0
 }
 ```
+
 Yeah! This works. End we reached the end of this readme! All seems to work now.

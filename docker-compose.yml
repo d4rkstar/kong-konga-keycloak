@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: 
 
   kong:
-    image: kong:1.4.0-alpine-oidc
+    image: kong:1.4.2-alpine-oidc
     depends_on:
       - kong-db
     networks:
@@ -77,7 +77,7 @@ services:
       POSTGRES_PASSWORD: password
 
   keycloak:
-    image: jboss/keycloak:7.0.1
+    image: jboss/keycloak:8.0.1
     depends_on:
       - keycloak-db
     networks:
