@@ -1,118 +1,95 @@
-# Kong / Konga / Keycloak: securing API through OIDC 
+# Kong / Konga / Keycloak: securing API through OIDC
 
-## Credits:
+## Credits
 
-[Securing APIs with Kong and Keycloak - Part 1](https://www.jerney.io/secure-apis-kong-keycloak-1/) by Joshua A Erney  
+[Securing APIs with Kong and Keycloak - Part 1](https://www.jerney.io/secure-apis-kong-keycloak-1/) by Joshua A Erney
 
-## Requirements:
+## Requirements
 
-* [**docker**](https://docs.docker.com/install/)
-* [**docker-compose**](https://docs.docker.com/compose/overview/)
-* [**jq**](https://stedolan.github.io/jq/)
-* [**curl** cheatsheet ;)](https://devhints.io/curl)
-* Patience
-* :coffee:
+- [**docker**](https://docs.docker.com/install/)
+- [**docker-compose**](https://docs.docker.com/compose/overview/)
+- [**jq**](https://stedolan.github.io/jq/)
+- [**curl** cheatsheet ;)](https://devhints.io/curl)
+- Patience
+- :coffee:
 
-## Installed versions:
-* Kong 1.4.2 - alpine
-* Konga 0.14.7
-* Keycloak 8.0.1
+## Installed versions
+
+- Kong 2.0.0 - alpine
+- Konga 0.14.7
+- Keycloak 8.0.1
 
 ## Goal of this tutorial
 
 The goal of this tutorial is to be able to protect, through the configuration of kong and keycloak, an API resource.
 More in details, let's consider the following request flow:
 
-![Request Floe](images/request-flow.png)
+![Request Flow](images/request-flow.png)
 
-1. The user application sends a request to the API gateway (kong). However, the request is either not authenticated (or 
-contains an invalid authentication).
+1. The user application sends a request to the API gateway (kong). However, the request is either not authenticated (or contains an invalid authentication).
 2. The gateway API responds to the client indicating the lack of authentication.
-3. The application therefore needs to log in. Therefore it sends a specific request for login to the Single Sign On 
-(Keycloak), including the user's credentials and the specific client-id assigned to the application itself.
-4. If the credentials are valid, the SSO (Keycloak) issues to the application a token (and the related refresh token), 
-with which to authenticate the requests to the Gateway API (Kong)
+3. The application therefore needs to log in. Therefore it sends a specific request for login to the Single Sign On (Keycloak), including the user's credentials and the specific client-id assigned to the application itself.
+4. If the credentials are valid, the SSO (Keycloak) issues to the application a token (and the related refresh token), with which to authenticate the requests to the Gateway API (Kong)
 5. The application then repeats the request adding the valid token as an authorization
-6. Behind the scenes, the gateway API will proceed to verify (through introspection) that the token in question 
-corresponds to a session on the Single Sign On (Keycloak). 
+6. Behind the scenes, the gateway API will proceed to verify (through introspection) that the token in question corresponds to a session on the Single Sign On (Keycloak).
 7. The result of the introspection is returned to Kong, who will handle the application request accordingly
 8. If the outcome of introspection is positive, Kong will handle the request. Alternatively we will be in step 2 (the request is refused)
 
 Note:
-The application can log in to keycloak even before sending the first request. Indeed it is normally so, if we think of 
-the case of a mobile app: once the credentials have been entered, the user may have chosen to remain connected (so at 
-most the application will request a new valid token using the refresh token).
+The application can log in to keycloak even before sending the first request. Indeed it is normally so, if we think of the case of a mobile app: once the credentials have been entered, the user may have chosen to remain connected (so at most the application will request a new valid token using the refresh token).
 
-___
-
+---
 
 ## 0. Introduction
-I reviewed the content of this page, and I decided to turn it into a complete guide and translate it from Italian to 
-English to make it universal to read: the previous version was a summary of the article indicated among the credits 
-(whose reading is useful for understanding what follows).
+
+I reviewed the content of this page, and I decided to turn it into a complete guide and translate it from Italian to English to make it universal to read: the previous version was a summary of the article indicated among the credits (whose reading is useful for understanding what follows).
 
 I also advise you to read the various reference links, as they are useful for further investigation.
 
-The *docker-compose.yml* file already contains the entire "infrastructure" described in the article. The purpose of 
-this README is to adapt the content of the article to the current versions of the applications and possibly add some 
-informative details where necessary.
+The _docker-compose.yml_ file already contains the entire "infrastructure" described in the article. The purpose of this README is to adapt the content of the article to the current versions of the applications and possibly add some informative details where necessary.
 
-:danger: *Warning*- Inside the *docker-compose.yml* there are default credentials and the installation you get is not a 
-*production-ready* system.
-
+:danger: _Warning_- Inside the _docker-compose.yml_ there are default credentials and the installation you get is not a _production-ready_ system.
 
 ## 1. Create the image of Kong + Oidc
 
-[kong-oidc](https://github.com/nokia/kong-oidc) is a kong plugin that allows you to implement OpenID Connect RP (Relying 
-Party).
+[kong-oidc](https://github.com/nokia/kong-oidc) is a kong plugin that allows you to implement OpenID Connect RP (Relying Party).
 
 ### 1.1 Brief introduction to OIDC
 
-OpenID is a simple level of identity implemented above the OAuth 2.0 protocol: it allows its Clients to verify the 
-identity of the end user, based on the authentication performed by an Authorization Server, as well as to obtain basic 
+OpenID is a simple level of identity implemented above the OAuth 2.0 protocol: it allows its Clients to verify the
+identity of the end user, based on the authentication performed by an Authorization Server, as well as to obtain basic
 information on the user profile.
 
-With a Security Token Service (STS), the RP is redirected to an STS, which authenticates the RP and issues a security 
-token that grants access, instead of the application that directly authenticates the RP. Claims are extracted from 
+With a Security Token Service (STS), the RP is redirected to an STS, which authenticates the RP and issues a security
+token that grants access, instead of the application that directly authenticates the RP. Claims are extracted from
 tokens and used for identity-related activities.
 
-The OpenID standard defines a situation in which a cooperating site can act as an RP, allowing the user to access 
-multiple sites using a set of credentials. The user benefits from not having to share access credentials with multiple 
+The OpenID standard defines a situation in which a cooperating site can act as an RP, allowing the user to access
+multiple sites using a set of credentials. The user benefits from not having to share access credentials with multiple
 sites and the operators of the collaborating site must not develop their own access mechanism.
 
 :point_right: Useful Links
 
-* [Relying Party](https://en.wikipedia.org/wiki/Relying_party)
-* [Claims based identity](https://en.wikipedia.org/wiki/Claims-based_identity)
-* [OpenID](https://en.wikipedia.org/wiki/OpenID)
+- [Relying Party](https://en.wikipedia.org/wiki/Relying_party)
+- [Claims based identity](https://en.wikipedia.org/wiki/Claims-based_identity)
+- [OpenID](https://en.wikipedia.org/wiki/OpenID)
 
 ### 1.2 Construction of the docker image
 
-Compared to the setting proposed by the author of the article from which we started, we will proceed to implement an 
-image based on his alpine linux.
-
-This is the content of the Dockerfile attached to this brief guide:
-
-```Dockerfile
-FROM kong:1.4.2-alpine
-
-LABEL description="Alpine + Kong 1.4.2 + kong-oidc plugin"
-
-RUN apk update && apk add git unzip luarocks
-RUN luarocks install kong-oidc
-```
+Compared to the setting proposed by the author of the article from which we started, we will proceed to implement an
+image based on alpine linux.
 
 We will just have to give the command:
 
 ```bash
-# docker build -t kong:1.4.2-alpine-oidc .
+docker-compose build kong
 ```
 
 and wait for the image to build.
 
 ## 2. Kong DB + Database Migrations
 
-Kong uses a database server (postgresql in our case). For this reason it is necessary to initialize the database by 
+Kong uses a database server (postgresql in our case). For this reason it is necessary to initialize the database by
 launching the necessary migrations.
 
 First we start the kong-db service:
@@ -127,6 +104,12 @@ Let's launch kong migrations:
 docker-compose run --rm kong kong migrations bootstrap
 ```
 
+:raised_hand: In case you're upgrading kong from previous versions, probably you may need to run migrations. In this case, you can give this command:
+
+```bash
+docker-compose run --rm kong kong migrations up
+```
+
 At this point we can start kong:
 
 ```bash
@@ -134,46 +117,47 @@ docker-compose up -d kong
 ```
 
 Let's verify that you have the two services running:
+
 ```bash
-$ docker-compose ps
+docker-compose ps
 ```
 
 And finally, let's verify that the OIDC plugin is present on Kong:
 
 ```bash
-$ curl -s http://localhost:8001 | jq .plugins.available_on_server.oidc
+curl -s http://localhost:8001 | jq .plugins.available_on_server.oidc
 ```
 
-The result of this call should be `true`. The presence of the plugin does not indicate that it is 
+The result of this call should be `true`. The presence of the plugin does not indicate that it is
 already active.
 
 ## 3. Konga
 
-Konga is an administration panel for Kong. It offers us a visual panel through which to carry out Kong's 
+Konga is an administration panel for Kong. It offers us a visual panel through which to carry out Kong's
 configurations (as well as inspect the configurations made from the command line).
 
 We start konga with the command:
 
 ```bash
-$ docker-compose up -d konga
+docker-compose up -d konga
 ```
 
-Konga is listening on port 1337. Therefore we launch a browser and point to the url 
+Konga is listening on port 1337. Therefore we launch a browser and point to the url
 [http://localhost:1337](http://localhost:1337).
 
-The first time we log in to konga we will need to register the administrator account. For tests, use 
+The first time we log in to konga we will need to register the administrator account. For tests, use
 simple, easy-to-remember credentials. For production systems, use passwords that meet safety standards!
 
 After registering the administrator user, it will be possible to log in.
 
-Once logged in, we will need to activate the connection to Kong. Enter in "Name" the value "kong" and 
-as "Kong Admin URL" the following address: ```http://kong:8001``` then save.
+Once logged in, we will need to activate the connection to Kong. Enter in "Name" the value "kong" and
+as "Kong Admin URL" the following address: `http://kong:8001` then save.
 
 At this point we will have our instance of Konga ready for use!
 
 ## 4. Creation of a service and a route
 
-To test the system, we will use [Mockbin](http://mockbin.org/) (a service that generates endpoints to 
+To test the system, we will use [Mockbin](http://mockbin.org/) (a service that generates endpoints to
 test HTTP requests, responses, sockets and APIs).
 
 As a reference, please refer to [Kong's Admin API](https://docs.konghq.com/1.3.x/admin-api).
@@ -192,7 +176,7 @@ $ curl -s -X POST http://localhost:8001/services \
 }
 ```
 
-Make a note of your service id (in the example it is e71c82d3-2e53-469b-9beb-a232a15f86d4) and use it 
+Make a note of your service id (in the example it is e71c82d3-2e53-469b-9beb-a232a15f86d4) and use it
 to make the next call to kong's api that allows you to add a route to the service.
 
 ```bash
@@ -249,13 +233,13 @@ docker-compose ps
 We should see all the containers running:
 
 ```bash
-                     Name                                   Command               State                                               Ports                                             
+                     Name                                   Command               State                                               Ports
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-kong-konga-keycloak_keycloak-db_1_6cf898ee0278   docker-entrypoint.sh postgres    Up      0.0.0.0:25432->5432/tcp                                                                       
-kong-konga-keycloak_keycloak_1_86084fa93065      /opt/jboss/tools/docker-en ...   Up      0.0.0.0:8180->8080/tcp, 8443/tcp                                                              
-kong-konga-keycloak_kong-db_1_74c7d714a18f       docker-entrypoint.sh postgres    Up      0.0.0.0:15432->5432/tcp                                                                       
+kong-konga-keycloak_keycloak-db_1_6cf898ee0278   docker-entrypoint.sh postgres    Up      0.0.0.0:25432->5432/tcp
+kong-konga-keycloak_keycloak_1_86084fa93065      /opt/jboss/tools/docker-en ...   Up      0.0.0.0:8180->8080/tcp, 8443/tcp
+kong-konga-keycloak_kong-db_1_74c7d714a18f       docker-entrypoint.sh postgres    Up      0.0.0.0:15432->5432/tcp
 kong-konga-keycloak_kong_1_db9239a81fc8          /docker-entrypoint.sh kong ...   Up      0.0.0.0:8000->8000/tcp, 0.0.0.0:8001->8001/tcp, 0.0.0.0:8443->8443/tcp, 0.0.0.0:8444->8444/tcp
-kong-konga-keycloak_konga_1_e925524dbfcb         /app/start.sh                    Up      0.0.0.0:1337->1337/tcp                                                                        
+kong-konga-keycloak_konga_1_e925524dbfcb         /app/start.sh                    Up      0.0.0.0:1337->1337/tcp
 
 
 ```
@@ -264,17 +248,17 @@ kong-konga-keycloak_konga_1_e925524dbfcb         /app/start.sh                  
 
 Keycloak will be available at the url [http://localhost:8180](http://localhost:8180).
 
-You can login using credentials inside the docker-compose.yml file. (default credentials are 
+You can login using credentials inside the docker-compose.yml file. (default credentials are
 admin/admin)
 
 ![Keycloak Login](images/keycloak-login.png)
 
-After login, click on the button "Add Realm": this button appears when your mouse is over the realm 
+After login, click on the button "Add Realm": this button appears when your mouse is over the realm
 name (Master) on the upper left corner:
 
 ![Keycloak add Realm](images/keycloak-add-realm.png)
 
-You need to give the realm a name. For this README i've choosen the name "experimental" but you can 
+You need to give the realm a name. For this README i've choosen the name "experimental" but you can
 choose the name you prefer:
 
 ![Keycloak New Realm](images/keycloak-new-realm.png)
@@ -290,7 +274,7 @@ However, after the realm is created, we need to add two clients:
 - One client that will be used by Kong, through the OIDC plugin
 - Another client that we'll use to access the API through Kong.
 
-We'll name the first client "kong". Choose "Clients" from the left side bar menu, then click the 
+We'll name the first client "kong". Choose "Clients" from the left side bar menu, then click the
 "Create" button on the right side of the page.
 
 ![Keycloak create client](images/keycloak-create-client-1.png)
@@ -301,11 +285,11 @@ Fill in the "Client ID" field with then "kong" string then save.
 
 Pay attention to the fields:
 
-- *Client Protocol*: this account is for OIDC, so choose "openid-connect"
-- *Access Type*: "confidential". This clients requires a secret to initiate the login process. This
-key will be used later on kong OIDC configuration.
-- *Root Url*
-- *Valid redirect URLs*
+- _Client Protocol_: this account is for OIDC, so choose "openid-connect"
+- _Access Type_: "confidential". This clients requires a secret to initiate the login process. This
+  key will be used later on kong OIDC configuration.
+- _Root Url_
+- _Valid redirect URLs_
 
 Under tab "Credentials", you'll find the Secret that we'll use to configure Kong OIDC:
 
@@ -338,20 +322,21 @@ Click "Reset Password" to apply the new credential.
 
 ## 7. Kong configuration as Keycloak client
 
-to be able to activate the functionality of the OIDC with Kong as a client of Keycloak, and to allow introspection 
+to be able to activate the functionality of the OIDC with Kong as a client of Keycloak, and to allow introspection
 (points 6 and 7 of the initial image) it is necessary to invoke an Admin Rest API of Kong.
 
-The API in question is [/plugins](https://docs.konghq.com/1.3.x/admin-api/#add-plugin) which allows you to add a plugin 
+The API in question is [/plugins](https://docs.konghq.com/1.3.x/admin-api/#add-plugin) which allows you to add a plugin
 globally to Kong.
 
 To add the OIDC plugin, you need some information:
 
-- The IP address of our machine (this is because the redirection should be done on a URL of the keycloak service, but in 
-the example kong runs in a container and in a network segment different from that of keycloak).
-- the CLIENT_SECRET recoverable from the "Credential" tab available in the "kong" client tab added during the Keycloak 
-configuration phase.
+- The IP address of our machine (this is because the redirection should be done on a URL of the keycloak service, but in
+  the example kong runs in a container and in a network segment different from that of keycloak).
+- the CLIENT_SECRET recoverable from the "Credential" tab available in the "kong" client tab added during the Keycloak
+  configuration phase.
 
 To retrieve the ip address of a network interface, knowing its name, you can use the following command:
+
 ```bash
 HOST_IP=`ip address show dev <<DEVICE_NAME_HERE>> | grep "inet " \
 | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
@@ -362,12 +347,14 @@ Replace the <<DEVICE_NAME_HERE>> with the name of your network interface.
 
 ![Terminal IP](images/terminal-ip.png)
 
-You should have the result of the image above. In my example, the network interface is wlp2s0 and my ip is 
+You should have the result of the image above. In my example, the network interface is wlp2s0 and my ip is
 192.168.88.21.
 
 Now set a variable with the client secret:
+
 ```bash
-$ CLIENT_SECRET="02432bc5-0802-49de-9c03-b9b84301859f"
+CLIENT_SECRET="02432bc5-0802-49de-9c03-b9b84301859f"
+REALM="experimental"
 ```
 
 If the HOST_IP variable is filled up correctly with your Ip address, you can use the following curl request to
@@ -379,9 +366,9 @@ $ curl -s -X POST http://localhost:8001/plugins \
   -d config.client_id=kong \
   -d config.client_secret=${CLIENT_SECRET} \
   -d config.bearer_only=yes \
-  -d config.realm=kong \
-  -d config.introspection_endpoint=http://${HOST_IP}:8180/auth/realms/experimental/protocol/openid-connect/token/introspect \
-  -d config.discovery=http://${HOST_IP}:8180/auth/realms/master/.well-known/openid-configuration \
+  -d config.realm=${REALM} \
+  -d config.introspection_endpoint=http://${HOST_IP}:8180/auth/realms/${REALM}/protocol/openid-connect/token/introspect \
+  -d config.discovery=http://${HOST_IP}:8180/auth/realms/${REALM}/.well-known/openid-configuration \
   | python -mjson.tool
 ```
 
@@ -390,9 +377,10 @@ page for [Kong Oidc](https://github.com/nokia/kong-oidc). Check the "Usage" sect
 
 Only pay attention to the "bearer_only=yes": with this setting kong will introspect tokens without redirecting. This is
 useful if you're build an app / webpage and want full control over the login process: infact, kong will not redirect
-the user to keycloak login page upon an unauthorized request, but will reply with 401. 
+the user to keycloak login page upon an unauthorized request, but will reply with 401.
 
 However, Kong should reply with the configuration:
+
 ```bash
 {
     "config": {
@@ -439,10 +427,12 @@ You can see the configuration visually through Konga > [Plugins](http://localhos
 We're ready to do the final test !
 
 # 8. Final test
-Before begin, be sure you've setup the HOST_IP environment variable, like done under 
+
+Before begin, be sure you've setup the HOST_IP environment variable, like done under
 [Kong Configuration](#7-Kong-configuration-as-keycloak-client).
- 
+
 Let's try to access our API without authorization:
+
 ```bash
 curl "http://${HOST_IP}:8000/mock" \
 -H "Accept: application/json" -I
@@ -452,6 +442,7 @@ Connection: keep-alive
 WWW-Authenticate: Bearer realm="kong",error="no Authorization header found"
 Server: kong/1.3.0
 ```
+
 Well, kong says that we need to be authenticated! Let's do that
 
 Under the section [6. Configuration of realm and clients in Keycloak](#6-configuration-of-realm-and-clients-in-keycloak), we added an user.
@@ -488,11 +479,10 @@ responses.
 Let's extract the access token from RAWTKN:
 
 ```bash
-❯ export TKN=$(echo $RAWTKN | jq -r '.access_token')
-
+export TKN=$(echo $RAWTKN | jq -r '.access_token')
 ~
-❯ echo $TKN
-  eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA
+echo $TKN
+eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJENkhLTHlubllGVkEtNGZKLWFLR3o1ai0xMHNFQ2NBZTA1UUp0Y05xdEN3In0.eyJqdGkiOiI1NmNkOGYyYy1iZGViLTQ5ODktYjJjNi0zMzRmZjQwOWQxYzIiLCJleHAiOjE1Njc3NDc0MDcsIm5iZiI6MCwiaWF0IjoxNTY3NzQ3MTA3LCJpc3MiOiJodHRwOi8vMTkyLjE2OC44OC4yMTo4MTgwL2F1dGgvcmVhbG1zL2V4cGVyaW1lbnRhbCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIxNTg0OWM0NS05ZTIxLTRmOTQtYjZmNC1hMzkyMTMyNmRkNGIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJteWFwcCIsImF1dGhfdGltZSI6MCwic2Vzc2lvbl9zdGF0ZSI6ImIxNGI2ODk0LTE1ZjQtNDE3Ni1iYjkwLWRiOThlYjg3OTRkNSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiRGVtbyBVc2VyIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGVtb3VzZXIiLCJnaXZlbl9uYW1lIjoiRGVtbyIsImZhbWlseV9uYW1lIjoiVXNlciIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.i0S_8Bf9TfVbHHTIVTIMM-q4K65jLhzuXnRfUvXdCti0LfxjEl_vrj9dzsigUhi-C5JKRGyZYi3ZZn6rlpgWD0uzVDcl6jMnpFW4lrJukrKHGUVd6_VYLPkdRFnylmsYfuvMT2DdHBVhpFOzhnr1zP9cGGdFozUzd90Drj_P6l1wjWg47Jwgo5WsJCnr1jzcPY784Ao2Lz2jFZwiBSqWW1Hwj2uSZRXRvjjPd0_LUhGqSi5LFjTFni3eTLXPBwrjSZq_JBlk1hMEoMfp7JKnB5tF4poGSO2tRTd-3j80BlY6jwAyTDWDDw0-fdp_UrhW_10VaxPXNyHc0AgGXDkvDA
 ```
 
 Let's use the access token to access the authenticated api:

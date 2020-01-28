@@ -10,7 +10,7 @@ volumes:
 
 services:
   kong-db:
-    image: postgres:9.6
+    image: postgres:11-alpine
     volumes:
       - kong-datastore:/var/lib/postgresql/data
     networks:
@@ -23,7 +23,9 @@ services:
       POSTGRES_PASSWORD: 
 
   kong:
-    image: kong:1.4.2-alpine-oidc
+    build:
+      context: ./      
+    image: kong-oidc:latest
     depends_on:
       - kong-db
     networks:
@@ -64,7 +66,7 @@ services:
       NODE_ENV: development
 
   keycloak-db:
-    image: postgres:9.6
+    image: postgres:11-alpine
     volumes: 
       - keycloak-datastore:/var/lib/postgresql/data
     networks:
