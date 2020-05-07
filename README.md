@@ -15,9 +15,9 @@
 
 ## Installed versions
 
-- Kong 2.0.0 - alpine
+- Kong 2.0.4 - alpine
 - Konga 0.14.7
-- Keycloak 8.0.1
+- Keycloak 10.0.0
 
 ## Goal of this tutorial
 

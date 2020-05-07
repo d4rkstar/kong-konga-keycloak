@@ -1,6 +1,6 @@
-FROM kong:2.0.0-alpine
+FROM kong:2.0.4-alpine
 
-LABEL description="Alpine + Kong 2.0.0 + kong-oidc plugin"
+LABEL description="Alpine + Kong 2.0.4 + kong-oidc plugin"
 
 USER root
 RUN apk update && apk add git unzip luarocks
