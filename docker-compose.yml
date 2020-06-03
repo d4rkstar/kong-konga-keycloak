@@ -64,6 +64,7 @@ services:
       DB_HOST: kong-db
       DB_PORT: '5432'
       DB_USER: kong
+      DB_PASSWORD: kong
       DB_DATABASE: api-gw
       NODE_ENV: development
 
@@ -81,7 +82,7 @@ services:
       POSTGRES_PASSWORD: password
 
   keycloak:
-    image: jboss/keycloak:10.0.0
+    image: jboss/keycloak:10.0.2
     depends_on:
       - keycloak-db
     networks:

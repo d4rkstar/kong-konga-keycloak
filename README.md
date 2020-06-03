@@ -17,7 +17,7 @@
 
 - Kong 2.0.4 - alpine
 - Konga 0.14.7
-- Keycloak 10.0.0
+- Keycloak 10.0.2
 
 ## Goal of this tutorial
 
