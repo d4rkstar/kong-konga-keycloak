@@ -69,7 +69,7 @@ services:
       NODE_ENV: development
 
   keycloak-db:
-    image: postgres:11-alpine
+    image: postgres:13-alpine
     volumes: 
       - keycloak-datastore:/var/lib/postgresql/data
     networks:
