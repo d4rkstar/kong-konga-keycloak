@@ -1,10 +1,11 @@
-FROM kong:2.0.4-alpine
+FROM kong:alpine
 
-LABEL description="Alpine + Kong 2.0.4 + kong-oidc plugin"
+LABEL description="Alpine + Kong  + kong-oidc plugin"
 
 USER root
-RUN apk update && apk add git unzip luarocks
-RUN luarocks install --pin lua-resty-jwt 0.2.2-0
+RUN apk update && apk add curl git gcc musl-dev
+RUN luarocks install luaossl OPENSSL_DIR=/usr/local/kong CRYPTO_DIR=/usr/local/kong
+RUN luarocks install --pin lua-resty-jwt
 RUN luarocks install kong-oidc
 
 USER kong
