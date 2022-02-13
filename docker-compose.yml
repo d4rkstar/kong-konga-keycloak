@@ -10,7 +10,7 @@ volumes:
 
 services:
   kong-db:
-    image: postgres:13-alpine
+    image: postgres:11-alpine
     volumes:
       - kong-datastore:/var/lib/postgresql/data
     networks:
@@ -69,7 +69,7 @@ services:
       NODE_ENV: development
 
   keycloak-db:
-    image: postgres:13-alpine
+    image: postgres:14-alpine
     volumes: 
       - keycloak-datastore:/var/lib/postgresql/data
     networks:
@@ -82,9 +82,10 @@ services:
       POSTGRES_PASSWORD: password
 
   keycloak:
-    image: jboss/keycloak:12.0.4
+    image: quay.io/keycloak/keycloak:17.0.0
     depends_on:
       - keycloak-db
+    command: start-dev
     networks:
       - keycloak-net
     ports:
@@ -96,6 +97,6 @@ services:
       DB_DATABASE: keycloak
       DB_USER:     keycloak
       DB_PASSWORD: password
-      KEYCLOAK_USER:     admin
-      KEYCLOAK_PASSWORD: admin
+      KEYCLOAK_ADMIN:     admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
 

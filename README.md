@@ -367,7 +367,7 @@ $ curl -s -X POST http://localhost:8001/plugins \
   -d config.client_secret=${CLIENT_SECRET} \
   -d config.bearer_only=yes \
   -d config.realm=${REALM} \
-  -d config.introspection_endpoint=http://${HOST_IP}:8180/auth/realms/${REALM}/protocol/openid-connect/token/introspect \
+  -d config.introspection_endpoint=http://${HOST_IP}:8180/realms/${REALM}/protocol/openid-connect/token/introspect \
   -d config.discovery=http://${HOST_IP}:8180/auth/realms/${REALM}/.well-known/openid-configuration \
   | python -mjson.tool
 ```
@@ -386,13 +386,13 @@ However, Kong should reply with the configuration:
     "config": {
         "bearer_only": "yes",
         "client_id": "kong",
-        "client_secret": "02432bc5-0802-49de-9c03-b9b84301859f",
-        "discovery": "http://192.168.88.21:8180/auth/realms/master/.well-known/openid-configuration",
+        "client_secret": "rcfcrFK7EKxpV71BqhEmPvT7RK4Ug0GR",
+        "discovery": "http://192.168.88.19:8180/realms/experimental/.well-known/openid-configuration",
         "filters": null,
-        "introspection_endpoint": "http://192.168.88.21:8180/auth/realms/experimental/protocol/openid-connect/token/introspect",
+        "introspection_endpoint": "http://192.168.88.19:8180/realms/experimental/protocol/openid-connect/token/introspect",
         "introspection_endpoint_auth_method": null,
         "logout_path": "/logout",
-        "realm": "kong",
+        "realm": "experimental",
         "recovery_page_path": null,
         "redirect_after_logout_uri": "/",
         "redirect_uri_path": null,
@@ -403,9 +403,9 @@ However, Kong should reply with the configuration:
         "token_endpoint_auth_method": "client_secret_post"
     },
     "consumer": null,
-    "created_at": 1567746736,
+    "created_at": 1644788028,
     "enabled": true,
-    "id": "6476d875-56b8-4e7b-9bf9-bdd72241a9bd",
+    "id": "4ef8b45e-75b3-4922-bd94-8cf19ed2bcb0",
     "name": "oidc",
     "protocols": [
         "grpc",
@@ -414,7 +414,6 @@ However, Kong should reply with the configuration:
         "https"
     ],
     "route": null,
-    "run_on": "first",
     "service": null,
     "tags": null
 }
@@ -457,7 +456,7 @@ RAWTKN=$(curl -s -X POST \
         -d "password=demouser" \
         -d 'grant_type=password' \
         -d "client_id=myapp" \
-        http://${HOST_IP}:8180/auth/realms/experimental/protocol/openid-connect/token \
+        http://${HOST_IP}:8180/realms/experimental/protocol/openid-connect/token \
         |jq . )
 
 echo $RAWTKN
