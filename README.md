@@ -424,8 +424,30 @@ You can see the configuration visually through Konga > [Plugins](http://localhos
 ![Konga Kong Plugins OIDC](images/konga-plugins-oidc.png)
 
 We're ready to do the final test !
+# 8. Configuration of Grafana and Prometheus
+Prometheus:
 
-# 8. Final test
+To power your metrics add Prometheus plugin from konga.
+![Prometheus plugin](images/prometheus-plugin.png)
+
+Prometheus is listening on port 9090. Therefore we launch a browser and point to the url
+[http://localhost:9090](http://localhost:9090).
+![Prometheus Targets](images/prometheus-targets.png)
+
+
+Grafana:
+
+We point to grafana Url [http://localhost:1337](http://localhost:1337).
+
+Default login is admin/admin.Then we add Prometheus datasource
+![Grafana DataSource](images/prometheus-data-source.png)
+
+To add kong dashboard import official kong dashboard  [https://grafana.com/grafana/dashboards/7424](https://grafana.com/grafana/dashboards/7424)
+![load dashboard](images/kong-dashboard-load.png)
+then select Prometheus data source .
+
+![grafana kong dashboard](images/grafana-kong-dashboard.png)
+# 9. Final test
 
 Before begin, be sure you've setup the HOST_IP environment variable, like done under
 [Kong Configuration](#7-Kong-configuration-as-keycloak-client).

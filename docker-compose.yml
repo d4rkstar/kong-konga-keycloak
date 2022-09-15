@@ -2,6 +2,7 @@ version: '3.4'
 
 networks: 
   kong-net:
+    driver: bridge
   keycloak-net:
 
 volumes:
@@ -100,3 +101,29 @@ services:
       KEYCLOAK_ADMIN:     admin
       KEYCLOAK_ADMIN_PASSWORD: admin
 
+  prometheus:
+    image: prom/prometheus
+    depends_on:
+      - kong
+    container_name: prometheus
+    networks:
+      - kong-net
+    restart: always
+    volumes: 
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+    ports: 
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    container_name: grafana
+    networks:
+      - kong-net
+    restart: always
+    volumes: 
+      - ./grafana/provisioning/:/etc/grafana/provisioning
+    ports:
+      - 3000:3000
