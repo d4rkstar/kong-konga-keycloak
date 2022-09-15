@@ -166,7 +166,7 @@ As a reference, please refer to [Kong's Admin API](https://docs.konghq.com/1.3.x
 $ curl -s -X POST http://localhost:8001/services \
     -d name=mock-service \
     -d url=http://mockbin.org/request \
-    | python -mjson.tool
+    | jq
 {
     "connect_timeout": 60000,
     "created_at": 1556145691,
@@ -369,7 +369,7 @@ $ curl -s -X POST http://localhost:8001/plugins \
   -d config.realm=${REALM} \
   -d config.introspection_endpoint=http://${HOST_IP}:8180/realms/${REALM}/protocol/openid-connect/token/introspect \
   -d config.discovery=http://${HOST_IP}:8180/auth/realms/${REALM}/.well-known/openid-configuration \
-  | python -mjson.tool
+  | jq
 ```
 
 If you want the details about the various -d config. we used in this request, please point your browwser to the github
@@ -456,7 +456,7 @@ RAWTKN=$(curl -s -X POST \
         -d "password=demouser" \
         -d 'grant_type=password' \
         -d "client_id=myapp" \
-        http://${HOST_IP}:8180/realms/experimental/protocol/openid-connect/token \
+        http://${HOST_IP}:8180/realms/${REALM}/protocol/openid-connect/token \
         |jq . )
 
 echo $RAWTKN
