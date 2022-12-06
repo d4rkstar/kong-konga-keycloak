@@ -15,9 +15,9 @@
 
 ## Installed versions
 
-- Kong 2.7.1 - alpine
+- Kong 2.8.1 - alpine
 - Konga 0.14.7
-- Keycloak 17.0.0
+- Keycloak 20.0.1
 
 ## Goal of this tutorial
 
@@ -281,7 +281,7 @@ We'll name the first client "kong". Choose "Clients" from the left side bar menu
 
 Fill in the "Client ID" field with then "kong" string then save.
 
-![Keycloak client settings](images/keycloak-client-settings-1.png)
+![Keycloak client settings](images/keycloak-client-kong-settings.png)
 
 Pay attention to the fields:
 
@@ -301,6 +301,8 @@ Now, create a second client, named "myapp".
 
 The important thing here is the access type: "public" means that the login process needs users credentials to be
 completed.
+
+![Keycloak client settings](images/keycloak-client-myapp-settings.png)
 
 So, let's create a user that we'll use, later, to perform authentication.
 
@@ -437,7 +439,7 @@ Prometheus is listening on port 9090. Therefore we launch a browser and point to
 
 Grafana:
 
-We point to grafana Url [http://localhost:1337](http://localhost:1337).
+We point to grafana Url [http://localhost:3000](http://localhost:3000).
 
 Default login is admin/admin.Then we add Prometheus datasource
 ![Grafana DataSource](images/prometheus-data-source.png)
