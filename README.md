@@ -15,7 +15,7 @@
 
 ## Installed versions
 
-- Kong 2.8.1 - alpine
+- Kong 2.8.3 - alpine
 - Konga 0.14.7
 - Keycloak 20.0.1
 
@@ -160,7 +160,7 @@ At this point we will have our instance of Konga ready for use!
 To test the system, we will use [Mockbin](http://mockbin.org/) (a service that generates endpoints to
 test HTTP requests, responses, sockets and APIs).
 
-As a reference, please refer to [Kong's Admin API](https://docs.konghq.com/1.3.x/admin-api).
+As a reference, please refer to [Kong's Admin API](https://docs.konghq.com/gateway/2.8.x/admin-api/).
 
 ```bash
 $ curl -s -X POST http://localhost:8001/services \
@@ -286,8 +286,7 @@ Fill in the "Client ID" field with then "kong" string then save.
 Pay attention to the fields:
 
 - _Client Protocol_: this account is for OIDC, so choose "openid-connect"
-- _Access Type_: "confidential". This clients requires a secret to initiate the login process. This
-  key will be used later on kong OIDC configuration.
+- _Client authentication_: "ON" == "confidential". This clients requires a secret to initiate the login process. This key will be used later on kong OIDC configuration. In the version 20 of Keycloak to swith between public and confidential access you need to change the `client authentication` toggle; ON is confidential and OFF is public.
 - _Root Url_
 - _Valid redirect URLs_
 
@@ -297,12 +296,9 @@ Under tab "Credentials", you'll find the Secret that we'll use to configure Kong
 
 Now, create a second client, named "myapp".
 
-![Keycloak Create Client 2](images/keycloak-create-client-2.png)
+![Keycloak Create Client 2](images/keycloak-client-myapp-settings.png))
 
-The important thing here is the access type: "public" means that the login process needs users credentials to be
-completed.
-
-![Keycloak client settings](images/keycloak-client-myapp-settings.png)
+The important thing here is the "client authentication": "OFF" == "public" means that the login process needs users credentials to be completed. 
 
 So, let's create a user that we'll use, later, to perform authentication.
 
