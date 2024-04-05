@@ -98,7 +98,7 @@ services:
       KC_DB_PASSWORD: password
       KEYCLOAK_ADMIN:           admin
       KEYCLOAK_ADMIN_PASSWORD:  admin
-      KC_METRICS_ENABLED: true
+      KC_METRICS_ENABLED: 1
 
   prometheus:
     image: prom/prometheus
